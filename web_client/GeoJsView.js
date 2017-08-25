@@ -23,11 +23,15 @@ const GeoJsView = View.extend({
         var layer = this._map.createLayer('feature');
         var reader = geojs.createFileReader('jsonReader', {'layer': layer});
 
-
         reader.read(this.model.downloadUrl());
         this._map.draw();
 
         return this;
+    },
+
+    destroy: function () {
+        // TODO zach: do I need to do anything to clean up the map?
+        View.prototype.destroy.call(this);
     }
 });
 
