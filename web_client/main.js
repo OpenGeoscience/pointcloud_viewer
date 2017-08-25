@@ -2,36 +2,36 @@ import _ from 'underscore';
 import FileListWidget from 'girder/views/widgets/FileListWidget';
 import { wrap } from 'girder/utilities/PluginUtils';
 
-import GeoJsView from './GeoJsView';
+import PcView from './PcView';
 import viewButtonTemplate from './templates/viewButton.pug';
 
 wrap(FileListWidget, 'render', function (render) {
     render.call(this);
 
-    this.$el.prepend($('<div>', {class: 'g-geojs-view-container'}));
+    this.$el.prepend($('<div>', {class: 'g-pc-container'}));
 
     _.each(this.$('.g-file-list-link'), (link) => {
         const file = this.collection.get($(link).attr('cid'));
-        if (file.get('mimeType') === 'application/json' || _.contains(file.get('exts'), 'json')) {
+        if (file.get('mimeType') === 'text/plain' || _.contains(file.get('exts'), 'las')) {
             $(link).after(viewButtonTemplate({cid: file.cid}));
         }
     });
 
-    this.$('.g-view-with-geojs').tooltip();
+    this.$('.g-view-with-pc').tooltip();
 
     return this;
 });
 
-FileListWidget.prototype.events['click .g-view-with-geojs'] = function (e) {
+FileListWidget.prototype.events['click .g-view-with-pc'] = function (e) {
     const file = this.collection.get($(e.currentTarget).attr('file-cid'));
 
-    if (this.geoJsView) {
-        this.geoJsView.destroy();
+    if (this.pcView) {
+        this.pcView.destroy();
     }
 
-    this.geoJsView = new GeoJsView({
+    this.pcView = new PcView({
         parentView: this,
-        el: this.$('.g-geojs-view-container'),
+        el: this.$('.g-pc-container'),
         model: file
     }).render();
 };
