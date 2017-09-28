@@ -1,4 +1,3 @@
-import potree from 'potree/build/potree/potree';
 import View from 'girder/views/View';
 
 import template from './templates/pc.pug';
@@ -7,24 +6,23 @@ import './stylesheets/pc.styl';
 const PcView = View.extend({
     render: function () {
         this.$el.html(template());
-
-        window.viewer = new Potree.Viewer(document.getElementById(".g-pc-container"));
+        window.viewer = new Potree.Viewer($(".g-pc-container")[0]);
 
         viewer.setEDLEnabled(true);
         viewer.setFOV(60);
-        viewer.setPointBudget(1*1000*1000);
+        viewer.setPointBudget(1 * 1000 * 1000);
         viewer.loadSettingsFromURL();
 
-        viewer.setDescription("Loading Octree of LAS files");
+        // viewer.setDescription("Loading Octree of LAS files");
 
-        viewer.loadGUI(() => {
-            viewer.setLanguage('en');
-            $("#menu_appearance").next().show();
-            //viewer.toggleSidebar();
-        });
+        // viewer.loadGUI(() => {
+        //     viewer.setLanguage('en');
+        //     $("#menu_appearance").next().show();
+        //     //viewer.toggleSidebar();
+        // });
 
         // Sigeom
-        Potree.loadPointCloud(this.model.downloadUrl(), "lidar data", function(e){
+        Potree.loadPointCloud(this.model.downloadUrl(), "lidar data", function (e) {
             viewer.scene.addPointCloud(e.pointcloud);
 
             let material = e.pointcloud.material;
