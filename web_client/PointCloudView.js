@@ -1,24 +1,29 @@
+// Girder imports
 import View from 'girder/views/View';
 
+// Web imports
 import template from './templates/pc.pug';
 import './stylesheets/pc.styl';
 
+// TODO: Replace this with ES4 promise
 import bluebird from 'bluebird';
 
+// VTK JS import
 import vtkPolyData from 'vtk.js/Sources/Common/DataModel/PolyData';
 import vtkMapper from 'vtk.js/Sources/Rendering/Core/Mapper';
 import vtkActor from 'vtk.js/Sources/Rendering/Core/Actor';
 import vtkPoints from 'vtk.js/Sources/Common/Core/Points';
 import vtkCellArray from 'vtk.js/Sources/Common/Core/CellArray';
 import vtkDataArray from 'vtk.js/Sources/Common/Core/DataArray';
-import vtkFullScreenRenderWindow  from 'vtk.js/Sources/Rendering/Misc/FullScreenRenderWindow';
+import vtkOpenGLRenderWindow from 'vtk.js/Sources/Rendering/OpenGL/RenderWindow';
+import vtkRenderWindowInteractor from 'vtk.js/Sources/Rendering/Core/RenderWindowInteractor';
+import vtkRenderWindow from 'vtk.js/Sources/Rendering/Core/RenderWindow';
+import vtkRenderer from 'vtk.js/Sources/Rendering/Core/Renderer';
 
 var Promise = bluebird.Promise;
 
-var parsys;
-
 /**
- *
+ * Point format spec - currently reading 0, 1, 2, 3
  */
 var pointFormatReaders = {
     0: function(dv) {
@@ -77,6 +82,7 @@ function readAs(buf, Type, offset, count) {
 }
 
 /**
+ * Parse LAS header
  *
  * @param {*} arraybuffer
  */
@@ -444,6 +450,9 @@ var ParticleSystem = function(vs, fs) {
     this.in_y = null;
     this.klass = null;
     this.pointsSoFar = 0;
+
+    this.renderer = null;
+    this.renderWindow = null;
 };
 
 /**
@@ -524,26 +533,58 @@ ParticleSystem.prototype.normalizePositionsWithOffset = function(offset) {
     this.mx.sub(off);
 };
 
+/**
+ *
+ */
+ParticleSystem.prototype.init = function(elem) {
+    if (!this.renderer) {
+        this.renderer = vtkRenderer.newInstance({ background: [0.1, 0.1, 0.1] });;
+        this.openglRenderWindow = vtkOpenGLRenderWindow.newInstance();
+        this.renderWindow = vtkRenderWindow.newInstance();
+        this.renderWindow.addRenderer(this.renderer);
+        this.renderWindow.addView(this.openglRenderWindow);
+
+        this.openglRenderWindow.setContainer(elem);
+
+        const interactor = vtkRenderWindowInteractor.newInstance();
+        interactor.setView(this.openglRenderWindow);
+        interactor.initialize();
+        interactor.bindEvents(elem);
+    }
+}
 
 /**
- * Render particle system in fullscreen mode
+ * Render particle system using vtk.js
  */
-ParticleSystem.prototype.render = function() {
-    const fullScreenRenderer = vtkFullScreenRenderWindow.newInstance({ background: [0, 0, 0] });
-    const renderer = fullScreenRenderer.getRenderer();
-    const renderWindow = fullScreenRenderer.getRenderWindow();
+ParticleSystem.prototype.render = function(firstTime) {
+    if (firstTime) {
+        for (var i = 0; i < this.pss.length; ++i) {
+            const actor = vtkActor.newInstance();
+            actor.getProperty().setPointSize(10);
+            const mapper = vtkMapper.newInstance();
+            mapper.setInputData(this.pss[i]);
+            actor.setMapper(mapper);
+            this.renderer.addActor(actor);
+        }
 
-    for (var i = 0; i < this.pss.length; ++i) {
-        const actor = vtkActor.newInstance();
-        actor.getProperty().setPointSize(10);
-        const mapper = vtkMapper.newInstance();
-        mapper.setInputData(this.pss[i]);
-        actor.setMapper(mapper);
-        renderer.addActor(actor);
+        this.renderer.resetCamera();
     }
 
-    renderer.resetCamera();
-    renderWindow.render();
+    this.renderWindow.render();
+}
+
+/**
+ * Handle window resize
+ */
+ParticleSystem.prototype.resize = function(elem) {
+    const dims = elem.getBoundingClientRect();
+    const windowWidth = Math.floor(dims.width);
+    const windowHeight = Math.floor(dims.height);
+    this.openglRenderWindow.setSize(windowWidth, windowHeight);
+    this.render();
+}
+
+ParticleSystem.prototype.destroy = function() {
 }
 
 /**
@@ -597,111 +638,116 @@ var getBinaryLocal = function(file, cb) {
     });
 };
 
+
 /**
- *
- * @param {*} lf
- * @param {*} buffer
+ * PointCloudView that loads and render LAS files using vtk.js
  */
-var loadData = function(lf, buffer) {
-    return Promise.resolve(lf).then(function(lf) {
-        return lf.open().then(function() {
-            lf.isOpen = true;
-            return lf;
-        })
-        .catch(Promise.CancellationError, function(e) {
-            // open message was sent at this point, but then handler was not called
-            // because the operation was cancelled, explicitly close the file
-            return lf.close().then(function() {
-                throw e;
-            });
-        });
-    }).then(function(lf) {
-        console.log("getting header");
-        return lf.getHeader().then(function(h) {
-            console.log("got header", h);
-            return [lf, h];
-        });
-    }).then(function(v) {
-        var lf = v[0];
-        var header = v[1];
-
-        // var skip = Math.round((10 - currentLoadFidelity()));
-        var skip = 0;
-        var totalRead = 0;
-        var totalToRead = (skip <= 1 ? header.pointsCount : header.pointsCount / skip);
-        var reader = function() {
-            var p = lf.readData(10000000, 0, skip);
-            return p.then(function(data) {
-                var Unpacker = lf.getUnpacker();
-                if (parsys == null) {
-                    parsys = new ParticleSystem();
-                }
-                parsys.push(new Unpacker(data.buffer,
-                                            data.count,
-                                            header));
-
-                totalRead += data.count;
-
-                if (data.hasMoreData)
-                    return reader();
-                else {
-                    header.totalRead = totalRead;
-                    header.versionAsString = lf.versionAsString;
-                    header.isCompressed = lf.isCompressed;
-                    return [lf, header, parsys];
-                }
-            });
-        };
-
-        // return the lead reader
-        return reader();
-    }).then(function(v) {
-        var lf = v[0];
-
-        // Close it
-        return lf.close().then(function() {
-            lf.isOpen = false;
-            parsys.render();
-        }).then(function() {
-            // trim off the first element (our LASFile which we don't really want to pass to the user)
-            //
-            return v.slice(1);
-        });
-    }).catch(Promise.CancellationError, function(e) {
-        // If there was a cancellation, make sure the file is closed, if the file is open
-        // close and then fail
-        if (lf.isOpen)
-            return lf.close().then(function() {
-                lf.isOpen = false;
-                console.log("File was closed");
-                throw e;
-            });
-        throw e;
-    });
-};
-
-
-// var prm = getBinary('tp_manual_20160907131754_flt.las');
-// prm.then(function(lasfile) {
-//     loadData(lasfile);
-// });
-
-
-const PcView = View.extend({
+const PointCloudView = View.extend({
+    parsys: null,
     render: function () {
+        var thisView =  this;
         this.$el.html(template());
 
         getBinary(this.model.downloadUrl()).then(function(las){
-            loadData(las);
+            thisView._loadData(thisView.$('.g-pointcloud-vis-container')[0], las);
         });
 
         return this;
     },
 
     destroy: function () {
-        // this._map.exit();
+        thisView.parsys.destroy();
+        delete thisView.parsys;
+        thisView.parsys = null;
         View.prototype.destroy.call(this);
+    },
+
+    /**
+     *
+     * @param {*} lf
+     * @param {*} buffer
+     */
+    _loadData: function(elem, lf, buffer) {
+        var thisView =  this;
+
+        return Promise.resolve(lf).then(function(lf) {
+            return lf.open().then(function() {
+                lf.isOpen = true;
+                return lf;
+            })
+            .catch(Promise.CancellationError, function(e) {
+                // open message was sent at this point, but then handler was not called
+                // because the operation was cancelled, explicitly close the file
+                return lf.close().then(function() {
+                    throw e;
+                });
+            });
+        }).then(function(lf) {
+            console.log("getting header");
+            return lf.getHeader().then(function(h) {
+                console.log("got header", h);
+                return [lf, h];
+            });
+        }).then(function(v) {
+            var lf = v[0];
+            var header = v[1];
+
+            // var skip = Math.round((10 - currentLoadFidelity()));
+            var skip = 0;
+            var totalRead = 0;
+            var totalToRead = (skip <= 1 ? header.pointsCount : header.pointsCount / skip);
+            var reader = function() {
+                var p = lf.readData(10000000, 0, skip);
+                return p.then(function(data) {
+                    var Unpacker = lf.getUnpacker();
+                    if (thisView.parsys == null) {
+                        thisView.parsys = new ParticleSystem();
+                    }
+                    thisView.parsys.push(new Unpacker(data.buffer,
+                                                      data.count,
+                                                      header));
+
+                    totalRead += data.count;
+
+                    if (data.hasMoreData)
+                        return reader();
+                    else {
+                        header.totalRead = totalRead;
+                        header.versionAsString = lf.versionAsString;
+                        header.isCompressed = lf.isCompressed;
+                        return [lf, header, thisView.parsys];
+                    }
+                });
+            };
+
+            // return the lead reader
+            return reader();
+        }).then(function(v) {
+            var lf = v[0];
+
+            // Close it
+            return lf.close().then(function() {
+                lf.isOpen = false;
+                thisView.parsys.init(elem);
+                thisView.parsys.render(true);
+                thisView.parsys.resize(elem);
+            }).then(function() {
+                // trim off the first element (our LASFile which we don't really want to pass to the user)
+                //
+                return v.slice(1);
+            });
+        }).catch(Promise.CancellationError, function(e) {
+            // If there was a cancellation, make sure the file is closed, if the file is open
+            // close and then fail
+            if (lf.isOpen)
+                return lf.close().then(function() {
+                    lf.isOpen = false;
+                    console.log("File was closed");
+                    throw e;
+                });
+            throw e;
+        });
     }
 });
 
-export default PcView;
+export default PointCloudView;

@@ -2,13 +2,13 @@ import _ from 'underscore';
 import FileListWidget from 'girder/views/widgets/FileListWidget';
 import { wrap } from 'girder/utilities/PluginUtils';
 
-import PcView from './PcView';
+import PointCloudView from './PointCloudView';
 import viewButtonTemplate from './templates/viewButton.pug';
 
 wrap(FileListWidget, 'render', function (render) {
     render.call(this);
 
-    this.$el.prepend($('<div>', {class: 'g-pc-container'}));
+    this.$el.prepend($('<div>', {class: 'g-pointcloud-view-container'}));
 
     _.each(this.$('.g-file-list-link'), (link) => {
         const file = this.collection.get($(link).attr('cid'));
@@ -25,13 +25,13 @@ wrap(FileListWidget, 'render', function (render) {
 FileListWidget.prototype.events['click .g-view-with-pc'] = function (e) {
     const file = this.collection.get($(e.currentTarget).attr('file-cid'));
 
-    if (this.pcView) {
-        this.pcView.destroy();
+    if (this.PointCloudView) {
+        this.PointCloudView.destroy();
     }
 
-    this.pcView = new PcView({
+    this.PointCloudView = new PointCloudView({
         parentView: this,
-        el: this.$('.g-pc-container'),
+        el: this.$('.g-pointcloud-view-container'),
         model: file
     }).render();
 };
