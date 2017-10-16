@@ -676,6 +676,7 @@ const PointCloudView = View.extend({
     },
 
     destroy: function () {
+        var thisView =  this;
         thisView.parsys.destroy();
         delete thisView.parsys;
         thisView.parsys = null;

@@ -1,4 +1,4 @@
-name: PC viewer
+name: Point Cloud Viewer
 version: 0.1.0
 npm:
   dependencies:
