@@ -109,20 +109,20 @@ function readAs(buf, Type, offset, count) {
  * @param {*} arraybuffer
  */
 function parseLASHeader(arraybuffer) {
-    var o = {};
+    var _this = {};
 
-    o.pointsOffset = readAs(arraybuffer, Uint32Array, 32*3);
-    o.pointsFormatId = readAs(arraybuffer, Uint8Array, 32*3+8);
-    o.pointsStructSize = readAs(arraybuffer, Uint16Array, 32*3+8+1);
-    o.pointsCount = readAs(arraybuffer, Uint32Array, 32*3 + 11);
+    _this.pointsOffset = readAs(arraybuffer, Uint32Array, 32*3);
+    _this.pointsFormatId = readAs(arraybuffer, Uint8Array, 32*3+8);
+    _this.pointsStructSize = readAs(arraybuffer, Uint16Array, 32*3+8+1);
+    _this.pointsCount = readAs(arraybuffer, Uint32Array, 32*3 + 11);
 
     var start = 32*3 + 35;
-    o.scale = readAs(arraybuffer, Float64Array, start, 3); start += 24; // 8*3
-    o.offset = readAs(arraybuffer, Float64Array, start, 3); start += 24;
+    _this.scale = readAs(arraybuffer, Float64Array, start, 3); start += 24; // 8*3
+    _this.offset = readAs(arraybuffer, Float64Array, start, 3); start += 24;
 
     var bounds = readAs(arraybuffer, Float64Array, start, 6); start += 48; // 8*6;
-    o.maxs = [bounds[0], bounds[2], bounds[4]];
-    o.mins = [bounds[1], bounds[3], bounds[5]];
+    _this.maxs = [bounds[0], bounds[2], bounds[4]];
+    _this.mins = [bounds[1], bounds[3], bounds[5]];
 
     return o;
 }
@@ -149,12 +149,12 @@ LASLoader.prototype.open = function() {
  * Get header information
  */
 LASLoader.prototype.getHeader = function() {
-    var o = this;
+    var _this = this;
 
     return new Promise(function(res, rej) {
         setTimeout(function() {
-            o.header = parseLASHeader(o.arraybuffer);
-            res(o.header);
+            _this.header = parseLASHeader(_this.arraybuffer);
+            res(_this.header);
         }, 0);
     });
 };
@@ -163,46 +163,46 @@ LASLoader.prototype.getHeader = function() {
  * Read point data in mini-batch mode
  */
 LASLoader.prototype.readData = function(count, offset, skip) {
-    var o = this;
+    var _this = this;
 
     return new Promise(function(res, rej) {
         setTimeout(function() {
-            if (!o.header)
+            if (!_this.header)
                 return rej(new Error("Cannot start reading data till a header request is issued"));
 
             var start;
             if (skip <= 1) {
-                count = Math.min(count, o.header.pointsCount - o.readOffset);
-                start = o.header.pointsOffset + o.readOffset * o.header.pointsStructSize;
-                var end = start + count * o.header.pointsStructSize;
+                count = Math.min(count, _this.header.pointsCount - _this.readOffset);
+                start = _this.header.pointsOffset + _this.readOffset * _this.header.pointsStructSize;
+                var end = start + count * _this.header.pointsStructSize;
                 res({
-                    buffer: o.arraybuffer.slice(start, end),
+                    buffer: _this.arraybuffer.slice(start, end),
                     count: count,
-                    hasMoreData: o.readOffset + count < o.header.pointsCount});
-                o.readOffset += count;
+                    hasMoreData: _this.readOffset + count < _this.header.pointsCount});
+                _this.readOffset += count;
             }
             else {
-                var pointsToRead = Math.min(count * skip, o.header.pointsCount - o.readOffset);
+                var pointsToRead = Math.min(count * skip, _this.header.pointsCount - _this.readOffset);
                 var bufferSize = Math.ceil(pointsToRead / skip);
                 var pointsRead = 0;
 
-                var buf = new Uint8Array(bufferSize * o.header.pointsStructSize);
+                var buf = new Uint8Array(bufferSize * _this.header.pointsStructSize);
                 for (var i = 0 ; i < pointsToRead ; i ++) {
                     if (i % skip === 0) {
-                        start = o.header.pointsOffset + o.readOffset * o.header.pointsStructSize;
-                        var src = new Uint8Array(o.arraybuffer, start, o.header.pointsStructSize);
+                        start = _this.header.pointsOffset + _this.readOffset * _this.header.pointsStructSize;
+                        var src = new Uint8Array(_this.arraybuffer, start, _this.header.pointsStructSize);
 
-                        buf.set(src, pointsRead * o.header.pointsStructSize);
+                        buf.set(src, pointsRead * _this.header.pointsStructSize);
                         pointsRead ++;
                     }
 
-                    o.readOffset ++;
+                    _this.readOffset ++;
                 }
 
                 res({
                     buffer: buf.buffer,
                     count: pointsRead,
-                    hasMoreData: o.readOffset < o.header.pointsCount
+                    hasMoreData: _this.readOffset < _this.header.pointsCount
                 });
             }
         }, 0);
@@ -213,9 +213,9 @@ LASLoader.prototype.readData = function(count, offset, skip) {
  * Close the reader
  */
 LASLoader.prototype.close = function() {
-    var o = this;
+    var _this = this;
     return new Promise(function(res, rej) {
-        o.arraybuffer = null;
+        _this.arraybuffer = null;
         setTimeout(res, 0);
     });
 };
@@ -228,20 +228,20 @@ var LAZLoader = function(arraybuffer) {
     this.ww = new Worker("workers/laz-loader-worker.js");
 
     this.nextCB = null;
-    var o = this;
+    var _this = this;
 
     this.ww.onmessage = function(e) {
-        if (o.nextCB !== null) {
+        if (_this.nextCB !== null) {
             console.log('dorr: >>', e.data);
-            o.nextCB(e.data);
-            o.nextCB = null;
+            _this.nextCB(e.data);
+            _this.nextCB = null;
         }
     };
 
     this.dorr = function(req, cb) {
         console.log('dorr: <<', req);
-        o.nextCB = cb;
-        o.ww.postMessage(req);
+        _this.nextCB = cb;
+        _this.ww.postMessage(req);
     };
 };
 
@@ -249,9 +249,9 @@ LAZLoader.prototype.open = function() {
 
     // nothing needs to be done to open this file
     //
-    var o = this;
+    var _this = this;
     return new Promise(function(res, rej) {
-        o.dorr({type:"open", arraybuffer: o.arraybuffer}, function(r) {
+        _this.dorr({type:"open", arraybuffer: _this.arraybuffer}, function(r) {
             if (r.status !== 1)
                 return rej(new Error("Failed to open file"));
 
@@ -264,10 +264,10 @@ LAZLoader.prototype.open = function() {
  *
  */
 LAZLoader.prototype.getHeader = function() {
-    var o = this;
+    var _this = this;
 
     return new Promise(function(res, rej) {
-        o.dorr({type:'header'}, function(r) {
+        _this.dorr({type:'header'}, function(r) {
             if (r.status !== 1)
                 return rej(new Error("Failed to get header"));
 
@@ -280,10 +280,10 @@ LAZLoader.prototype.getHeader = function() {
  *
  */
 LAZLoader.prototype.readData = function(count, offset, skip) {
-    var o = this;
+    var _this = this;
 
     return new Promise(function(res, rej) {
-        o.dorr({type:'read', count: count, offset: offset, skip: skip}, function(r) {
+        _this.dorr({type:'read', count: count, offset: offset, skip: skip}, function(r) {
             if (r.status !== 1)
                 return rej(new Error("Failed to read data"));
             res({
@@ -299,10 +299,10 @@ LAZLoader.prototype.readData = function(count, offset, skip) {
  *
  */
 LAZLoader.prototype.close = function() {
-    var o = this;
+    var _this = this;
 
     return new Promise(function(res, rej) {
-        o.dorr({type:'close'}, function(r) {
+        _this.dorr({type:'close'}, function(r) {
             if (r.status !== 1)
                 return rej(new Error("Failed to close file"));
 
@@ -418,7 +418,7 @@ LASDecoder.prototype.getPoint = function(index) {
 //  //
 //  if(!common.browserSupportsNaCl()) {
 //      return $.event.trigger({
-//          type: "plasio.nacl.error",
+//          type: "plasi_this.nacl.error",
 //          message: "NaCl support is not available"
 //      });
 //  }
@@ -433,12 +433,12 @@ LASDecoder.prototype.getPoint = function(index) {
 //  function(e) {
 //      console.log("Failed!");
 //      $.event.trigger({
-//          type: "plasio.nacl.error",
+//          type: "plasi_this.nacl.error",
 //          message: "Could not allocate persistant storage"
 //      });
 //  });
 
-//  $(document).on("plasio.nacl.available", function() {
+//  $(document).on("plasi_this.nacl.available", function() {
 //      scope.LASModuleWasLoaded = true;
 //      console.log("NACL Available");
 //  });
@@ -457,8 +457,6 @@ LASFile.prototype.getUnpacker = function() {
  * An object that manages a bunch of particle systems
  */
 var ParticleSystem = function(vs, fs) {
-    // this.material = getMaterial(vs, fs);
-
     this.pss = []; // particle systems in use
 
     this.mx = null;
@@ -543,11 +541,11 @@ ParticleSystem.prototype.push = function(lasBuffer) {
  *
  */
 ParticleSystem.prototype.normalizePositionsWithOffset = function(offset) {
-    var o = this;
+    var _this = this;
 
     var off = offset.clone();
 
-    this.correctiveOffset = off.clone().sub(o.corrective);
+    this.correctiveOffset = off.clone().sub(_this.corrective);
     this.cg.sub(off);
     this.mn.sub(off);
     this.mx.sub(off);
