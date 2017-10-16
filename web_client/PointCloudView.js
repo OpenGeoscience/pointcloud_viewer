@@ -28,7 +28,7 @@ import template from './templates/pc.pug';
 import './stylesheets/pc.styl';
 
 // TODO: Replace this with ES4 promise
-import bluebird from 'bluebird';
+import Promise from 'bluebird';
 
 // VTK JS import
 import vtkPolyData from 'vtk.js/Sources/Common/DataModel/PolyData';
@@ -41,8 +41,6 @@ import vtkOpenGLRenderWindow from 'vtk.js/Sources/Rendering/OpenGL/RenderWindow'
 import vtkRenderWindowInteractor from 'vtk.js/Sources/Rendering/Core/RenderWindowInteractor';
 import vtkRenderWindow from 'vtk.js/Sources/Rendering/Core/RenderWindow';
 import vtkRenderer from 'vtk.js/Sources/Rendering/Core/Renderer';
-
-var Promise = bluebird.Promise;
 
 /**
  * Point format spec - currently reading 0, 1, 2, 3
