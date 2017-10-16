@@ -175,7 +175,6 @@ LASLoader.prototype.readData = function(count, offset, skip) {
                 count = Math.min(count, o.header.pointsCount - o.readOffset);
                 start = o.header.pointsOffset + o.readOffset * o.header.pointsStructSize;
                 var end = start + count * o.header.pointsStructSize;
-                console.log(start, end);
                 res({
                     buffer: o.arraybuffer.slice(start, end),
                     count: count,
@@ -188,7 +187,6 @@ LASLoader.prototype.readData = function(count, offset, skip) {
                 var pointsRead = 0;
 
                 var buf = new Uint8Array(bufferSize * o.header.pointsStructSize);
-                console.log("Destination size:", buf.byteLength);
                 for (var i = 0 ; i < pointsToRead ; i ++) {
                     if (i % skip === 0) {
                         start = o.header.pointsOffset + o.readOffset * o.header.pointsStructSize;
@@ -705,9 +703,7 @@ const PointCloudView = View.extend({
                 });
             });
         }).then(function(lf) {
-            console.log("getting header");
             return lf.getHeader().then(function(h) {
-                console.log("got header", h);
                 return [lf, h];
             });
         }).then(function(v) {
