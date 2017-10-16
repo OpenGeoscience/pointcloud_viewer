@@ -124,7 +124,7 @@ function parseLASHeader(arraybuffer) {
     _this.maxs = [bounds[0], bounds[2], bounds[4]];
     _this.mins = [bounds[1], bounds[3], bounds[5]];
 
-    return o;
+    return _this;
 }
 
 /**
@@ -578,7 +578,7 @@ ParticleSystem.prototype.render = function(firstTime) {
     if (firstTime) {
         for (var i = 0; i < this.pss.length; ++i) {
             const actor = vtkActor.newInstance();
-            actor.getProperty().setPointSize(10);
+            actor.getProperty().setPointSize(5);
             const mapper = vtkMapper.newInstance();
             mapper.setInputData(this.pss[i]);
             actor.setMapper(mapper);
@@ -663,21 +663,21 @@ var getBinaryLocal = function(file, cb) {
 const PointCloudView = View.extend({
     parsys: null,
     render: function () {
-        var thisView =  this;
+        var _this =  this;
         this.$el.html(template());
 
         getBinary(this.model.downloadUrl()).then(function(las){
-            thisView._loadData(thisView.$('.g-pointcloud-vis-container')[0], las);
+            _this._loadData(_this.$('.g-pointcloud-vis-container')[0], las);
         });
 
         return this;
     },
 
     destroy: function () {
-        var thisView =  this;
-        thisView.parsys.destroy();
-        delete thisView.parsys;
-        thisView.parsys = null;
+        var _this =  this;
+        _this.parsys.destroy();
+        delete _this.parsys;
+        _this.parsys = null;
         View.prototype.destroy.call(this);
     },
 
@@ -687,7 +687,7 @@ const PointCloudView = View.extend({
      * @param {*} buffer
      */
     _loadData: function(elem, lf, buffer) {
-        var thisView =  this;
+        var _this =  this;
 
         return Promise.resolve(lf).then(function(lf) {
             return lf.open().then(function() {
@@ -717,10 +717,10 @@ const PointCloudView = View.extend({
                 var p = lf.readData(10000000, 0, skip);
                 return p.then(function(data) {
                     var Unpacker = lf.getUnpacker();
-                    if (thisView.parsys == null) {
-                        thisView.parsys = new ParticleSystem();
+                    if (_this.parsys == null) {
+                        _this.parsys = new ParticleSystem();
                     }
-                    thisView.parsys.push(new Unpacker(data.buffer,
+                    _this.parsys.push(new Unpacker(data.buffer,
                                                       data.count,
                                                       header));
 
@@ -732,7 +732,7 @@ const PointCloudView = View.extend({
                         header.totalRead = totalRead;
                         header.versionAsString = lf.versionAsString;
                         header.isCompressed = lf.isCompressed;
-                        return [lf, header, thisView.parsys];
+                        return [lf, header, _this.parsys];
                     }
                 });
             };
@@ -745,9 +745,9 @@ const PointCloudView = View.extend({
             // Close it
             return lf.close().then(function() {
                 lf.isOpen = false;
-                thisView.parsys.init(elem);
-                thisView.parsys.render(true);
-                thisView.parsys.resize(elem);
+                _this.parsys.init(elem);
+                _this.parsys.render(true);
+                _this.parsys.resize(elem);
             }).then(function() {
                 // trim off the first element (our LASFile which we don't really want to pass to the user)
                 //
