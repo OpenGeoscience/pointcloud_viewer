@@ -2,6 +2,8 @@
 
 Point cloud viewer that can read LAS (LAZ untested) files and display them in Girder item browser using vtk.js  
 
+![](https://github.com/OpenGeoscience/pointcloud_viewer/blob/master/screenshots/screenshot.png)
+
 # Contact  
 
 Contact kitware@kitware.com for questions regarding using Point Cloud Viewer  
@@ -40,7 +42,7 @@ Execute `girder-install web --dev --plugins pointcloud_viewer`
 
 Running:  
 Run `girder-server`  
-Navigate to `localhost:8080` and create a user and a file assetstore and enable this Vaui plugin  
-Upload a compatible video like [this](https://www.w3schools.com/html/mov_bbb.mp4) to a Restart server with `girder-server`  
-Navigate to `localhost:8080` and navigate to a LAS file  
+Navigate to `localhost:8080` and create a user and a file assetstore and enable this Point Cloud Viewer plugin  
+Navigate to `localhost:8080` and navigate to a folder of LAS item  
+Click on one of the LAS item  
 Click on globe icon  
